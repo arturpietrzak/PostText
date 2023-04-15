@@ -1,0 +1,9 @@
+a {
+  text-decoration: none; /* no underline */
+  color: aquamarine;
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}

@@ -1,0 +1,43 @@
+.page {
+  width: 100%;
+}
+
+.login-page {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+
+  gap: 2rem;
+
+  &__form {
+    display: flex;
+    flex-direction: column;
+    max-width: 400px;
+    width: 100%;
+
+    input {
+      margin-bottom: 0.75rem;
+    }
+  }
+}
+
+.sign-up-page {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+
+  gap: 2rem;
+
+  &__form {
+    display: flex;
+    flex-direction: column;
+    max-width: 400px;
+    width: 100%;
+
+    input {
+      margin-bottom: 0.75rem;
+    }
+  }
+}
