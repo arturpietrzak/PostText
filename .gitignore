@@ -102,3 +102,8 @@ dist
 
 # TernJS port file
 .tern-port
+
+# Cargo
+api/target/
+Cargo.lock
+**/*.rs.bk
