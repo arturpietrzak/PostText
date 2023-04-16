@@ -4,6 +4,7 @@ use sqlx::MySqlPool;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
+mod error;
 mod post;
 mod user;
 
