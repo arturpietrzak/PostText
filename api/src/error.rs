@@ -6,6 +6,7 @@ use axum::{
 #[derive(Debug)]
 pub enum Error {
     LoginFail,
+    AuthFail,
 }
 
 impl IntoResponse for Error {
