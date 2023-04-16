@@ -1,5 +1,4 @@
 use super::PoolConnection;
-use crate::error::Error;
 use axum::http::StatusCode;
 use axum::Router;
 use axum::{
@@ -8,7 +7,8 @@ use axum::{
     routing::get,
     routing::post,
 };
-use bcrypt::{hash, verify, DEFAULT_COST};
+use bcrypt::{verify, DEFAULT_COST};
+use chrono::{Duration, Utc};
 use serde::{Deserialize, Serialize};
 use tower_cookies::{Cookie, CookieManagerLayer, Cookies};
 
@@ -48,14 +48,17 @@ async fn login(
     payload: Json<LoginPayload>,
 ) -> impl IntoResponse {
     let result = sqlx::query!(
-        "SELECT password_hash, password_salt FROM user_tbl WHERE username = ?",
+        "
+        SELECT password_hash, password_salt, id 
+        FROM user_tbl 
+        WHERE username = ?
+        ",
         payload.username
     )
     .fetch_one(&(*pool))
     .await
     .unwrap();
 
-    // TODO: Add response with session cookie after succesful login
     if !verify_password(
         &payload.password,
         &result.password_hash,
@@ -64,7 +67,24 @@ async fn login(
         return StatusCode::UNAUTHORIZED;
     }
 
-    cookies.add(Cookie::new("session-token", generate_csprng()));
+    let session_token = generate_csprng();
+    let expiration_date = Utc::now() + Duration::days(30);
+    let x = expiration_date.format("%Y-%m-%d %H:%M:%S").to_string();
+
+    cookies.add(Cookie::new("session-token", session_token.clone()));
+    sqlx::query!(
+        "
+        INSERT INTO session_tbl
+        VALUES
+        (DEFAULT, ?, ?, ?)
+        ",
+        &session_token,
+        &result.id,
+        &x
+    )
+    .execute(&(*pool))
+    .await
+    .unwrap();
 
     return StatusCode::OK;
 }
