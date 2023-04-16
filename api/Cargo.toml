@@ -10,3 +10,4 @@ tokio = { version = "1", features = ["full"] }
 axum = "0.6"
 serde = { version = "1.0.160", features = ["derive"]}
 sqlx = { version = "0.6.3", features = ["runtime-tokio-native-tls", "mysql", "uuid", "macros"] }
+bcrypt = "0.14"
