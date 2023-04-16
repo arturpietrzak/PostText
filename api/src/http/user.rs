@@ -1,6 +1,6 @@
-use std::fmt::format;
-
 use super::PoolConnection;
+use crate::error::Error;
+use axum::http::StatusCode;
 use axum::Router;
 use axum::{
     extract::State,
@@ -10,12 +10,14 @@ use axum::{
 };
 use bcrypt::{hash, verify, DEFAULT_COST};
 use serde::{Deserialize, Serialize};
+use tower_cookies::{Cookie, CookieManagerLayer, Cookies};
 
 pub fn router(state_pool: PoolConnection) -> Router {
     Router::new()
         .route("/", get(get_users))
         .route("/login", post(login))
         .with_state(state_pool)
+        .layer(CookieManagerLayer::new())
 }
 
 #[derive(Serialize)]
@@ -41,6 +43,7 @@ struct LoginPayload {
 }
 
 async fn login(
+    cookies: Cookies,
     State(pool): State<PoolConnection>,
     payload: Json<LoginPayload>,
 ) -> impl IntoResponse {
@@ -52,16 +55,18 @@ async fn login(
     .await
     .unwrap();
 
-    println!(
-        "{} ",
-        verify(
-            format!("{}{}", payload.password, result.password_salt),
-            &result.password_hash
-        )
-        .unwrap()
-    );
-
     // TODO: Add response with session cookie after succesful login
+    if !verify_password(
+        &payload.password,
+        &result.password_hash,
+        &result.password_salt,
+    ) {
+        return StatusCode::UNAUTHORIZED;
+    }
+
+    cookies.add(Cookie::new("session-token", generate_csprng()));
+
+    return StatusCode::OK;
 }
 
 fn generate_csprng() -> String {
@@ -69,4 +74,8 @@ fn generate_csprng() -> String {
     let value: i128 = rng.next();
 
     format!("{:x}", value)
+}
+
+fn verify_password(entered_password: &str, db_hashed: &str, db_salt: &str) -> bool {
+    verify(format!("{}{}", entered_password, db_salt), db_hashed).unwrap_or(false)
 }
