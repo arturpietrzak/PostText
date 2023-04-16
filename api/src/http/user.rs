@@ -1,13 +1,15 @@
-use super::PoolConnection;
+use std::sync::Arc;
+
+use super::{mw, PoolConnection};
 use axum::http::StatusCode;
-use axum::Router;
 use axum::{
     extract::State,
     response::{IntoResponse, Json},
     routing::get,
     routing::post,
 };
-use bcrypt::{verify, DEFAULT_COST};
+use axum::{middleware, Router};
+use bcrypt::verify;
 use chrono::{Duration, Utc};
 use serde::{Deserialize, Serialize};
 use tower_cookies::{Cookie, CookieManagerLayer, Cookies};
@@ -15,6 +17,10 @@ use tower_cookies::{Cookie, CookieManagerLayer, Cookies};
 pub fn router(state_pool: PoolConnection) -> Router {
     Router::new()
         .route("/", get(get_users))
+        .route_layer(middleware::from_fn_with_state(
+            Arc::clone(&state_pool),
+            mw::mw_require_auth,
+        ))
         .route("/login", post(login))
         .with_state(state_pool)
         .layer(CookieManagerLayer::new())
