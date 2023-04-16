@@ -63,3 +63,10 @@ async fn login(
 
     // TODO: Add response with session cookie after succesful login
 }
+
+fn generate_csprng() -> String {
+    let mut rng = urandom::csprng();
+    let value: i128 = rng.next();
+
+    format!("{:x}", value)
+}
