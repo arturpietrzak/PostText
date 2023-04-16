@@ -18,21 +18,19 @@ pub struct Config {
 
 #[derive(Serialize)]
 struct TestResponse {
-    id: String,
-    username: String,
+    users: Vec<String>,
 }
 
 type Connection = Arc<MySqlPool>;
 
-async fn get_note(State(pool): State<Connection>) -> impl IntoResponse {
-    let row = sqlx::query!("SELECT username, id FROM user_tbl")
-        .fetch_one(&(*pool))
+async fn get_test(State(pool): State<Connection>) -> impl IntoResponse {
+    let row = sqlx::query!("SELECT username FROM user_tbl")
+        .fetch_all(&(*pool))
         .await
         .unwrap();
 
     Json(TestResponse {
-        id: String::from(&row.id),
-        username: String::from(&row.username),
+        users: row.iter().map(|record| record.username.clone()).collect(),
     })
 }
 
@@ -44,7 +42,7 @@ pub async fn serve(config: Config) {
         .unwrap();
 
     let app = Router::new()
-        .route("/", get(get_note))
+        .route("/test", get(get_test))
         .with_state(Arc::new(pool));
 
     println!("Listening on {}", &config.address);
