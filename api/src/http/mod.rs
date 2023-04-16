@@ -1,14 +1,13 @@
-use axum::{
-    extract::{Path, State},
-    response::{IntoResponse, Json},
-    routing::get,
-    Router, Server,
-};
-use serde::Serialize;
+use axum::{Router, Server};
 use sqlx::mysql::MySqlPoolOptions;
 use sqlx::MySqlPool;
 use std::net::SocketAddr;
 use std::sync::Arc;
+
+mod post;
+mod user;
+
+pub type PoolConnection = Arc<MySqlPool>;
 
 pub struct Config {
     pub database_url: String,
@@ -16,34 +15,16 @@ pub struct Config {
     pub max_db_connections: u32,
 }
 
-#[derive(Serialize)]
-struct TestResponse {
-    users: Vec<String>,
-}
-
-type Connection = Arc<MySqlPool>;
-
-async fn get_test(State(pool): State<Connection>) -> impl IntoResponse {
-    let row = sqlx::query!("SELECT username FROM user_tbl")
-        .fetch_all(&(*pool))
-        .await
-        .unwrap();
-
-    Json(TestResponse {
-        users: row.iter().map(|record| record.username.clone()).collect(),
-    })
-}
-
 pub async fn serve(config: Config) {
-    let pool = MySqlPoolOptions::new()
-        .max_connections(config.max_db_connections)
-        .connect(&config.database_url)
-        .await
-        .unwrap();
+    let state_pool = Arc::new(
+        MySqlPoolOptions::new()
+            .max_connections(config.max_db_connections)
+            .connect(&config.database_url)
+            .await
+            .unwrap(),
+    );
 
-    let app = Router::new()
-        .route("/test", get(get_test))
-        .with_state(Arc::new(pool));
+    let app = api_router(state_pool);
 
     println!("Listening on {}", &config.address);
 
@@ -51,4 +32,10 @@ pub async fn serve(config: Config) {
         .serve(app.into_make_service())
         .await
         .unwrap();
+}
+
+fn api_router(state_pool: Arc<MySqlPool>) -> Router {
+    Router::new()
+        .nest("/user", user::router(Arc::clone(&state_pool)))
+        .nest("/post", post::router(Arc::clone(&state_pool)))
 }
