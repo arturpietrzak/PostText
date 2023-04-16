@@ -1,3 +1,5 @@
+use std::fmt::format;
+
 use super::PoolConnection;
 use axum::Router;
 use axum::{
@@ -42,10 +44,22 @@ async fn login(
     State(pool): State<PoolConnection>,
     payload: Json<LoginPayload>,
 ) -> impl IntoResponse {
-    let hashed = hash("hunter2", DEFAULT_COST).unwrap_or(String::from(""));
-    let valid = verify("hunter2", &hashed).unwrap_or(false);
+    let result = sqlx::query!(
+        "SELECT password_hash, password_salt FROM user_tbl WHERE username = ?",
+        payload.username
+    )
+    .fetch_one(&(*pool))
+    .await
+    .unwrap();
 
-    println!("{} {}", hashed, valid);
+    println!(
+        "{} ",
+        verify(
+            format!("{}{}", payload.password, result.password_salt),
+            &result.password_hash
+        )
+        .unwrap()
+    );
 
-    Json(GetUsersResponse { users: vec![] })
+    // TODO: Add response with session cookie after succesful login
 }
