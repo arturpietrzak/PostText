@@ -51,19 +51,20 @@ struct LoginPayload {
 #[derive(Serialize)]
 struct LoginResponse {
     session_token: String,
+    username: String,
 }
 
 async fn login(
     State(pool): State<PoolConnection>,
     payload: Json<LoginPayload>,
-) -> Result<(StatusCode, Json<LoginResponse>), (StatusCode)> {
+) -> Result<(StatusCode, Json<LoginResponse>), StatusCode> {
     let result = sqlx::query!(
         "
         SELECT password_hash, password_salt, id 
         FROM user_tbl 
         WHERE username = ?
         ",
-        payload.username
+        &payload.username
     )
     .fetch_one(&(*pool))
     .await;
@@ -104,6 +105,7 @@ async fn login(
         StatusCode::OK,
         Json(LoginResponse {
             session_token: session_token,
+            username: payload.username.clone(),
         }),
     ))
 }
