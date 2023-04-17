@@ -7,6 +7,8 @@ export default function SignUpPage() {
           e.preventDefault();
         }}
       >
+        <label htmlFor="email">Email:</label>
+        <input type="email" name="email" id="email" />
         <label htmlFor="login">Name:</label>
         <input type="text" name="login" id="login" />
         <label htmlFor="password">Password:</label>

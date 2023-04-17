@@ -1,10 +1,19 @@
+import { useNavigate } from "react-router-dom";
+import { useSession } from "../main";
+
 export default function LoginPage() {
+  const session = useSession();
+  let navigate = useNavigate();
+
   return (
     <div className="page login-page">
       <form
         className="login-page__form"
         onSubmit={(e) => {
           e.preventDefault();
+          session.login("artur", "Artur1", () => {
+            navigate("/");
+          });
         }}
       >
         <label htmlFor="login">Name:</label>
