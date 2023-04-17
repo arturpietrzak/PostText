@@ -12,7 +12,6 @@ use axum::{middleware, Router};
 use bcrypt::verify;
 use chrono::{Duration, Utc};
 use serde::{Deserialize, Serialize};
-use tower_cookies::{Cookie, CookieManagerLayer, Cookies};
 
 pub fn router(state_pool: PoolConnection) -> Router {
     Router::new()
@@ -21,9 +20,9 @@ pub fn router(state_pool: PoolConnection) -> Router {
             Arc::clone(&state_pool),
             mw::mw_require_auth,
         ))
+        .route("/logout", post(logout))
         .route("/login", post(login))
         .with_state(state_pool)
-        .layer(CookieManagerLayer::new())
 }
 
 #[derive(Serialize)]
@@ -108,6 +107,29 @@ async fn login(
             username: payload.username.clone(),
         }),
     ))
+}
+
+#[derive(Deserialize)]
+struct LogoutPayload {
+    session_token: String,
+}
+
+async fn logout(State(pool): State<PoolConnection>, payload: Json<LogoutPayload>) -> StatusCode {
+    let result = sqlx::query!(
+        "
+        DELETE FROM session_tbl
+        WHERE token = ?;
+        ",
+        &payload.session_token
+    )
+    .execute(&(*pool))
+    .await;
+
+    if (result.is_err()) {
+        return StatusCode::INTERNAL_SERVER_ERROR;
+    }
+
+    StatusCode::OK
 }
 
 fn generate_csprng() -> String {
