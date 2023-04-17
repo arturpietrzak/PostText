@@ -79,7 +79,20 @@ const SessionProvider = ({ children }: { children: React.ReactNode }) => {
   });
 
   // if have token -> fetch session data
-  useEffect(() => {}, []);
+  useEffect(() => {
+    if (cookies["session-token"]) {
+      axios
+        .post("/user/revalidate-session", {
+          session_token: cookies["session-token"],
+        })
+        .then(function (response) {
+          setSessionData({ ...sessionData, username: response.data.username });
+        })
+        .catch(function () {
+          removeCookie("session-token");
+        });
+    }
+  }, []);
 
   return (
     <SessionContext.Provider value={sessionData}>
