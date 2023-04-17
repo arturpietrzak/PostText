@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use crate::pdt_to_dt;
+
 use super::{mw, PoolConnection};
 use axum::http::StatusCode;
 use axum::{
@@ -147,6 +149,24 @@ async fn revalidate_session(
     State(pool): State<PoolConnection>,
     payload: Json<RevalidateSessionPayload>,
 ) -> Result<(StatusCode, Json<RevalidateSessionResponse>), StatusCode> {
+    let record = sqlx::query!(
+        "
+        SELECT username, session_tbl.expiration_date
+        FROM user_tbl
+        RIGHT JOIN session_tbl
+        ON session_tbl.user_id = user_tbl.id
+        WHERE token = ?;
+        ",
+        &payload.session_token
+    )
+    .fetch_one(&(*pool))
+    .await
+    .unwrap();
+
+    if pdt_to_dt(&record.expiration_date) < Utc::now() {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+
     let new_expiration_date = Utc::now() + Duration::days(30);
     let x = new_expiration_date.format("%Y-%m-%d %H:%M:%S").to_string();
 
@@ -165,20 +185,6 @@ async fn revalidate_session(
     if result.is_err() {
         return Err(StatusCode::INTERNAL_SERVER_ERROR);
     }
-
-    let record = sqlx::query!(
-        "
-        SELECT username
-        FROM user_tbl
-        RIGHT JOIN session_tbl
-        ON session_tbl.user_id = user_tbl.id
-        WHERE token = ?;
-        ",
-        &payload.session_token
-    )
-    .fetch_one(&(*pool))
-    .await
-    .unwrap();
 
     Ok((
         StatusCode::OK,
