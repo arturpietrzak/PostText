@@ -22,6 +22,7 @@ pub fn router(state_pool: PoolConnection) -> Router {
         ))
         .route("/logout", post(logout))
         .route("/login", post(login))
+        .route("/revalidate-session", post(revalidate_session))
         .with_state(state_pool)
 }
 
@@ -125,11 +126,66 @@ async fn logout(State(pool): State<PoolConnection>, payload: Json<LogoutPayload>
     .execute(&(*pool))
     .await;
 
-    if (result.is_err()) {
+    if result.is_err() {
         return StatusCode::INTERNAL_SERVER_ERROR;
     }
 
     StatusCode::OK
+}
+
+#[derive(Deserialize)]
+struct RevalidateSessionPayload {
+    session_token: String,
+}
+
+#[derive(Serialize)]
+struct RevalidateSessionResponse {
+    username: String,
+}
+
+async fn revalidate_session(
+    State(pool): State<PoolConnection>,
+    payload: Json<RevalidateSessionPayload>,
+) -> Result<(StatusCode, Json<RevalidateSessionResponse>), StatusCode> {
+    let new_expiration_date = Utc::now() + Duration::days(30);
+    let x = new_expiration_date.format("%Y-%m-%d %H:%M:%S").to_string();
+
+    let result = sqlx::query!(
+        "
+        UPDATE session_tbl
+        SET expiration_date = ?
+        WHERE token = ?;
+        ",
+        &x,
+        &payload.session_token
+    )
+    .execute(&(*pool))
+    .await;
+
+    if result.is_err() {
+        return Err(StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    let record = sqlx::query!(
+        "
+        SELECT username
+        FROM user_tbl
+        RIGHT JOIN session_tbl
+        ON session_tbl.user_id = user_tbl.id
+        WHERE token = ?;
+        ",
+        &payload.session_token
+    )
+    .fetch_one(&(*pool))
+    .await
+    .unwrap();
+
+    Ok((
+        StatusCode::OK,
+        Json(RevalidateSessionResponse {
+            username: record.username.unwrap(),
+        }),
+    ))
 }
 
 fn generate_csprng() -> String {
