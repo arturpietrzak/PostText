@@ -31,12 +31,14 @@ const router = createBrowserRouter([
 
 interface SessionDataType {
   username: string | null;
+  isLoggedIn: boolean;
   login: (username: string, password: string, onSucces?: () => void) => void;
   logout: () => void;
 }
 
 const SessionContext = createContext<SessionDataType>({
   username: null,
+  isLoggedIn: false,
   login: () => {},
   logout: () => {},
 });
@@ -45,6 +47,7 @@ const SessionProvider = ({ children }: { children: React.ReactNode }) => {
   const [cookies, setCookie, removeCookie] = useCookies(["session-token"]);
   const [sessionData, setSessionData] = useState<SessionDataType>({
     username: null,
+    isLoggedIn: false,
     login: (username, password, onSucces) => {
       axios
         .post("/user/login", {
@@ -57,7 +60,11 @@ const SessionProvider = ({ children }: { children: React.ReactNode }) => {
           }
 
           setCookie("session-token", response.data.session_token);
-          setSessionData({ ...sessionData, username: response.data.username });
+          setSessionData({
+            ...sessionData,
+            isLoggedIn: true,
+            username: response.data.username,
+          });
         })
         .catch(function (error) {
           alert("Wrong credentials");
@@ -70,7 +77,7 @@ const SessionProvider = ({ children }: { children: React.ReactNode }) => {
         })
         .then(function () {
           removeCookie("session-token");
-          setSessionData({ ...sessionData, username: null });
+          setSessionData({ ...sessionData, isLoggedIn: false, username: null });
         })
         .catch(function () {
           alert("There was an issue during logging you out");
@@ -86,7 +93,11 @@ const SessionProvider = ({ children }: { children: React.ReactNode }) => {
           session_token: cookies["session-token"],
         })
         .then(function (response) {
-          setSessionData({ ...sessionData, username: response.data.username });
+          setSessionData({
+            ...sessionData,
+            isLoggedIn: false,
+            username: response.data.username,
+          });
         })
         .catch(function () {
           removeCookie("session-token");
