@@ -95,7 +95,7 @@ const SessionProvider = ({ children }: { children: React.ReactNode }) => {
         .then(function (response) {
           setSessionData({
             ...sessionData,
-            isLoggedIn: false,
+            isLoggedIn: true,
             username: response.data.username,
           });
         })
