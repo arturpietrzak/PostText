@@ -1,5 +1,4 @@
 use super::PoolConnection;
-use crate::error::Error;
 use crate::pdt_to_dt;
 use axum::extract::State;
 use axum::http::{Request, StatusCode};
@@ -14,11 +13,11 @@ pub async fn mw_require_auth<T>(
     req: Request<T>,
     next: Next<T>,
 ) -> Result<Response, StatusCode> {
-    let session_token = cookies
-        .get("session-token")
-        .map(|c| c.value().to_string())
-        .ok_or(Error::AuthFail)
-        .unwrap();
+    let session_token = cookies.get("session-token").map(|c| c.value().to_string());
+
+    if session_token.is_none() {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
 
     let result = sqlx::query!(
         "
@@ -30,8 +29,6 @@ pub async fn mw_require_auth<T>(
     )
     .fetch_one(&(*pool))
     .await;
-
-    println!("Middleware");
 
     if result.is_err() || pdt_to_dt(&result.unwrap().expiration_date) < Utc::now() {
         return Err(StatusCode::UNAUTHORIZED);
