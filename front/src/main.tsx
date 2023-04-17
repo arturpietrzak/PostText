@@ -44,7 +44,7 @@ const SessionContext = createContext<SessionDataType>({
 const SessionProvider = ({ children }: { children: React.ReactNode }) => {
   const [cookies, setCookie, removeCookie] = useCookies(["session-token"]);
   const [sessionData, setSessionData] = useState<SessionDataType>({
-    username: "dsadsad",
+    username: null,
     login: (username, password, onSucces) => {
       axios
         .post("/user/login", {

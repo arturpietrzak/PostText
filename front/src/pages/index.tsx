@@ -1,3 +1,6 @@
+import { useSession } from "../main";
+
 export default function IndexPage() {
-  return <h1>Hello world</h1>;
+  let { username } = useSession();
+  return <h1>{username ?? "null"}</h1>;
 }
