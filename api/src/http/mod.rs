@@ -3,6 +3,7 @@ use sqlx::mysql::MySqlPoolOptions;
 use sqlx::MySqlPool;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use tower_http::cors::CorsLayer;
 
 mod mw;
 mod post;
@@ -39,4 +40,5 @@ fn api_router(state_pool: Arc<MySqlPool>) -> Router {
     Router::new()
         .nest("/user", user::router(Arc::clone(&state_pool)))
         .nest("/post", post::router(Arc::clone(&state_pool)))
+        .layer(CorsLayer::permissive())
 }

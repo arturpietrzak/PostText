@@ -48,11 +48,15 @@ struct LoginPayload {
     password: String,
 }
 
+#[derive(Serialize)]
+struct LoginResponse {
+    session_token: String,
+}
+
 async fn login(
-    cookies: Cookies,
     State(pool): State<PoolConnection>,
     payload: Json<LoginPayload>,
-) -> impl IntoResponse {
+) -> Result<(StatusCode, Json<LoginResponse>), (StatusCode)> {
     let result = sqlx::query!(
         "
         SELECT password_hash, password_salt, id 
@@ -62,22 +66,26 @@ async fn login(
         payload.username
     )
     .fetch_one(&(*pool))
-    .await
-    .unwrap();
+    .await;
+
+    if result.is_err() {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+
+    let result = result.unwrap();
 
     if !verify_password(
         &payload.password,
         &result.password_hash,
         &result.password_salt,
     ) {
-        return StatusCode::UNAUTHORIZED;
+        return Err(StatusCode::UNAUTHORIZED);
     }
 
     let session_token = generate_csprng();
     let expiration_date = Utc::now() + Duration::days(30);
     let x = expiration_date.format("%Y-%m-%d %H:%M:%S").to_string();
 
-    cookies.add(Cookie::new("session-token", session_token.clone()));
     sqlx::query!(
         "
         INSERT INTO session_tbl
@@ -92,7 +100,12 @@ async fn login(
     .await
     .unwrap();
 
-    return StatusCode::OK;
+    Ok((
+        StatusCode::OK,
+        Json(LoginResponse {
+            session_token: session_token,
+        }),
+    ))
 }
 
 fn generate_csprng() -> String {
