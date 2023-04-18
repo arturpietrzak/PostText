@@ -1,11 +1,11 @@
-use axum::{extract::State, response::IntoResponse, routing::get, Json, Router};
+use axum::{extract::State, response::IntoResponse, routing::put, Json, Router};
 use serde::{Deserialize, Serialize};
 
 use super::PoolConnection;
 
 pub fn router(state_pool: super::PoolConnection) -> Router {
     Router::new()
-        .route("/", get(get_posts))
+        .route("/", put(get_posts))
         .with_state(state_pool)
 }
 
@@ -31,7 +31,7 @@ async fn get_posts(
     State(pool): State<PoolConnection>,
     payload: Json<GetPostsPayload>,
 ) -> impl IntoResponse {
-    let offset = payload.page.unwrap_or(0) * 25;
+    let offset = payload.page.unwrap_or(0) * 10;
 
     let row = sqlx::query!(
         "
@@ -57,7 +57,7 @@ async fn get_posts(
     .unwrap();
 
     Json(GetPostsResponse {
-        has_next: count.count > offset.into(),
+        has_next: count.count > (offset + 10).into(),
         posts: row
             .iter()
             .map(|record| Post {
