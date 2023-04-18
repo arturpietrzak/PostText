@@ -1,5 +1,6 @@
 .page {
   width: 100%;
+  min-height: 100vh;
 }
 
 .login-page {
@@ -40,6 +41,9 @@
       margin-bottom: 0.75rem;
     }
   }
+}
+
+.index-page {
 }
 
 .bottom-bar {
