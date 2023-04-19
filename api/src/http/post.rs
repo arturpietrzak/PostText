@@ -1,10 +1,23 @@
-use axum::{extract::State, response::IntoResponse, routing::put, Json, Router};
+use super::{mw, PoolConnection};
+use axum::{
+    extract::State,
+    http::StatusCode,
+    middleware,
+    response::IntoResponse,
+    routing::{post, put},
+    Json, Router,
+};
 use serde::{Deserialize, Serialize};
-
-use super::PoolConnection;
+use std::sync::Arc;
+use tower_cookies::Cookies;
 
 pub fn router(state_pool: super::PoolConnection) -> Router {
     Router::new()
+        .route("/post", post(create_post))
+        .route_layer(middleware::from_fn_with_state(
+            Arc::clone(&state_pool),
+            mw::mw_require_auth,
+        ))
         .route("/", put(get_posts))
         .with_state(state_pool)
 }
@@ -68,4 +81,55 @@ async fn get_posts(
             })
             .collect(),
     })
+}
+
+#[derive(Deserialize)]
+struct CreatePostPayload {
+    content: String,
+}
+
+async fn create_post(
+    State(pool): State<PoolConnection>,
+    cookies: Cookies,
+    payload: Json<CreatePostPayload>,
+) -> Result<StatusCode, StatusCode> {
+    let session_token = cookies.get("session-token").map(|c| c.value().to_string());
+
+    if payload.content.len() > 280 {
+        return Err(StatusCode::PAYLOAD_TOO_LARGE);
+    }
+
+    if session_token.is_none() {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+
+    let row = sqlx::query!(
+        "
+        SELECT user_tbl.id
+        FROM session_tbl
+        RIGHT JOIN user_tbl
+        ON session_tbl.user_id = user_tbl.id
+        "
+    )
+    .fetch_one(&(*pool))
+    .await;
+
+    if row.is_err() {
+        return Err(StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    sqlx::query!(
+        "
+        INSERT INTO post_tbl
+        VALUES
+        (DEFAULT, DEFAULT, ?, ?)
+        ",
+        row.unwrap().id,
+        &payload.content,
+    )
+    .execute(&(*pool))
+    .await
+    .unwrap();
+
+    Ok(StatusCode::OK)
 }
