@@ -1,8 +1,9 @@
 import { Link } from "react-router-dom";
 import { useSession } from "../main";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import axios from "axios";
 import InfiniteScrollTrigger from "../components/InfiniteScrollTrigger";
+import { useForm } from "react-hook-form";
 
 axios.defaults.baseURL = "http://127.0.0.1:8080/";
 
@@ -10,21 +11,51 @@ export default function IndexPage() {
   const { posts, hasNext, isFetching, fetchMore } = usePostsHook();
 
   return (
-    <div className="page">
-      <h1>{"Recent posts"}</h1>
+    <div className="page index-page">
+      <PostInput />
       <BottomBar />
-      {posts.map(({ content, id }) => (
-        <div key={id} style={{ height: "150px" }}>
-          {content}
-        </div>
-      ))}
+      <PostsList posts={posts} />
       {!isFetching && hasNext && (
         <InfiniteScrollTrigger onScreenEnter={fetchMore} />
       )}
-      <h2>dasdas</h2>
     </div>
   );
 }
+
+const PostInput = () => {
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm();
+
+  return (
+    <form
+      className="post-input"
+      onSubmit={handleSubmit((data) => {
+        console.log(data);
+        reset();
+      })}
+    >
+      <textarea {...register("content")} />
+      <button className="btn">Submit</button>
+    </form>
+  );
+};
+
+const PostsList = ({ posts }: { posts: Post[] }) => {
+  return (
+    <ul className="posts-list">
+      {posts.map(({ username, id, content }) => (
+        <li className="posts-list__item" key={id}>
+          <p className="posts-list__item__username">{username}</p>
+          <p className="posts-list__item__content">{content}</p>
+        </li>
+      ))}
+    </ul>
+  );
+};
 
 const BottomBar = () => {
   let { username, isLoggedIn, logout } = useSession();
