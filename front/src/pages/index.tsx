@@ -2,24 +2,26 @@ import { Link } from "react-router-dom";
 import { useSession } from "../main";
 import { useEffect, useState } from "react";
 import axios from "axios";
+import InfiniteScrollTrigger from "../components/InfiniteScrollTrigger";
 
 axios.defaults.baseURL = "http://127.0.0.1:8080/";
 
 export default function IndexPage() {
-  const { posts, hasNext, fetchMore } = usePostsHook();
-  console.log(posts);
+  const { posts, hasNext, isFetching, fetchMore } = usePostsHook();
 
   return (
     <div className="page">
-      <h1>{"null"}</h1>
+      <h1>{"Recent posts"}</h1>
       <BottomBar />
-      <button
-        onClick={() => {
-          fetchMore();
-        }}
-      >
-        dasdsa
-      </button>
+      {posts.map(({ content, id }) => (
+        <div key={id} style={{ height: "150px" }}>
+          {content}
+        </div>
+      ))}
+      {!isFetching && hasNext && (
+        <InfiniteScrollTrigger onScreenEnter={fetchMore} />
+      )}
+      <h2>dasdas</h2>
     </div>
   );
 }
@@ -44,19 +46,22 @@ const BottomBar = () => {
     </div>
   );
 };
+
 interface Post {
-  id: String;
-  username: String;
-  content: String;
+  id: string;
+  username: string;
+  content: string;
 }
 
 const usePostsHook = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [page, setPage] = useState(0);
   const [hasNext, setHasNext] = useState(true);
+  const [isFetching, setIsFetching] = useState(false);
 
   const fetchMore = () => {
-    if (hasNext) {
+    if (hasNext && !isFetching) {
+      setIsFetching(true);
       axios
         .put("/post", {
           page: page,
@@ -65,9 +70,12 @@ const usePostsHook = () => {
           setPage((prev) => prev + 1);
           setPosts((prev) => [...prev, ...res.data.posts]);
           setHasNext(res.data.has_next);
+        })
+        .finally(() => {
+          setIsFetching(false);
         });
     }
   };
 
-  return { posts, hasNext, fetchMore };
+  return { posts, hasNext, isFetching, fetchMore };
 };
