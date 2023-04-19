@@ -5,14 +5,12 @@ import axios from "axios";
 import InfiniteScrollTrigger from "../components/InfiniteScrollTrigger";
 import { useForm } from "react-hook-form";
 
-axios.defaults.baseURL = "http://127.0.0.1:8080/";
-
 export default function IndexPage() {
-  const { posts, hasNext, isFetching, fetchMore } = usePostsHook();
+  const { posts, hasNext, isFetching, fetchMore, refetch } = usePostsHook();
 
   return (
     <div className="page index-page">
-      <PostInput />
+      <PostInput onSubmit={refetch} />
       <BottomBar />
       <PostsList posts={posts} />
       {!isFetching && hasNext && (
@@ -22,7 +20,7 @@ export default function IndexPage() {
   );
 }
 
-const PostInput = () => {
+const PostInput = ({ onSubmit }: { onSubmit: () => void }) => {
   const {
     register,
     handleSubmit,
@@ -34,7 +32,22 @@ const PostInput = () => {
     <form
       className="post-input"
       onSubmit={handleSubmit((data) => {
-        console.log(data);
+        axios
+          .post(
+            "/post",
+            {
+              content: data.content,
+            },
+            {
+              headers: {
+                "Access-Control-Allow-Origin": "http://127.0.0.1:8080",
+                Cookie: "",
+              },
+            }
+          )
+          .then((res) => {
+            onSubmit();
+          });
         reset();
       })}
     >
@@ -90,6 +103,11 @@ const usePostsHook = () => {
   const [hasNext, setHasNext] = useState(true);
   const [isFetching, setIsFetching] = useState(false);
 
+  const refetch = () => {
+    setPage(0);
+    setHasNext(true);
+  };
+
   const fetchMore = () => {
     if (hasNext && !isFetching) {
       setIsFetching(true);
@@ -108,5 +126,5 @@ const usePostsHook = () => {
     }
   };
 
-  return { posts, hasNext, isFetching, fetchMore };
+  return { posts, hasNext, isFetching, fetchMore, refetch };
 };

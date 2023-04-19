@@ -9,16 +9,17 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use tower_cookies::Cookies;
+use tower_cookies::{CookieManagerLayer, Cookies};
 
 pub fn router(state_pool: super::PoolConnection) -> Router {
     Router::new()
-        .route("/post", post(create_post))
+        .route("/", post(create_post))
         .route_layer(middleware::from_fn_with_state(
             Arc::clone(&state_pool),
             mw::mw_require_auth,
         ))
         .route("/", put(get_posts))
+        .layer(CookieManagerLayer::new())
         .with_state(state_pool)
 }
 
@@ -100,7 +101,7 @@ async fn create_post(
     }
 
     if session_token.is_none() {
-        return Err(StatusCode::UNAUTHORIZED);
+        return Err(StatusCode::BAD_REQUEST);
     }
 
     let row = sqlx::query!(
@@ -109,7 +110,9 @@ async fn create_post(
         FROM session_tbl
         RIGHT JOIN user_tbl
         ON session_tbl.user_id = user_tbl.id
-        "
+        WHERE session_tbl.token = ?
+        ",
+        session_token.unwrap(),
     )
     .fetch_one(&(*pool))
     .await;
