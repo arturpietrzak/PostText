@@ -39,6 +39,7 @@ async fn get_posts(
         FROM post_tbl
         LEFT JOIN user_tbl
         ON post_tbl.user_id = user_tbl.id
+        ORDER BY post_tbl.created_at DESC
         LIMIT ?,10
         ",
         offset
