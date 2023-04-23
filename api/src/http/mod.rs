@@ -28,7 +28,6 @@ pub async fn serve(config: Config) {
     );
 
     let app = api_router(state_pool);
-
     println!("Listening on {}", &config.address);
 
     Server::bind(&config.address)
